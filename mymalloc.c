@@ -24,13 +24,9 @@ void *mymalloc(size_t size, char *file, int line){
         *(metastart + STATUS) = UNALLOCATED;
         *(metastart + PAYSIZE) = 4088;
     }
+    size = (size + 7) & ~7;
     char *paypointer = (char *) memory;
     paypointer += 8;
-    printf(" *(heapstart + 4): %d\n", * (int *) (heapstart + 4));
-    printf(" * (int *) (paypointer-4): %d\n", * (int *) (paypointer-4));
-    
-    //printf("%d\n",  * (int *) (paypointer-4));
-    //printf("%d\n",  * (int *) (paypointer-8));
     int i = 0;
     while(i < 4088){
         if(* (int *) (paypointer-4) >= (size + 16) && * (int *) (paypointer-8) == 0){
@@ -39,26 +35,21 @@ void *mymalloc(size_t size, char *file, int line){
             * (int *) (paypointer-4) = size;
             * (int *) (paypointer+size) = UNALLOCATED;
             * (int *) (paypointer+size+4) = origsize - size - HEADERSIZE;
+            printf(" * (int *) (paypointer - 8): %d\n", * (int *) (paypointer - 8));
+            printf(" * (int *) (paypointer - 4): %d\n", * (int *) (paypointer - 4));
+            printf(" * (int *) (paypointer + size): %d\n", * (int *) (paypointer + size));
+            printf(" * (int *) (paypointer + size+4): %d\n\n", * (int *) (paypointer + size + 4));
             i+=4088;
         }
-        //printf("%d\n",  * (int *) (paypointer-4));
+
+        paypointer += (* (int *) (paypointer - 4) + 8);
         i += * (int *) (paypointer-4);
-        paypointer += * (int *) (paypointer-4);
-        
-        //i += * (int *) (paypointer-4);
     }
-    return (void*) memory;
+    return paypointer;
 
 }
 
 int main(){
-    //printf("%p", malloc(8));
-    //printf("%p", malloc(8));
-    //malloc(8);
-    //int *metastart = (int *) memory;
-    //printf("%d\n", *metastart);
-    //printf("%d\n", *(metastart+1));
-    //printf("%ld\n", sizeof(int));
 
     /*
     Test malloc function: call malloc(8): this should set the first header to be allocated with a size of 8. 
@@ -71,10 +62,9 @@ int main(){
     * (int *) (paypointer + 12) = 4072
     */
     malloc(8);
-    char *paypointer = (char *) memory;
-    paypointer += 8;
-    printf(" * (int *) (paypointer - 8): %d\n", * (int *) (paypointer - 8));
-    printf(" * (int *) (paypointer - 4): %d\n", * (int *) (paypointer - 4));
-    printf(" * (int *) (paypointer + 8): %d\n", * (int *) (paypointer + 8));
-    printf(" * (int *) (paypointer + 12): %d\n", * (int *) (paypointer + 12));
+    malloc(8);
+    malloc(24);
+    malloc(8);
+    malloc(31);
+    
 }
