@@ -27,7 +27,7 @@ void *mymalloc(size_t size, char *file, int line){
     size = (size + 7) & ~7;
     char *paypointer = (char *) memory;
     paypointer += 8;
-    int i = 0;
+    int i = 8;
     while(i < 4088){
         if(* (int *) (paypointer-4) >= (size /*+ 16*/) && * (int *) (paypointer-8) == 0){
             int origsize = * (int *) (paypointer-4);
@@ -44,38 +44,64 @@ void *mymalloc(size_t size, char *file, int line){
             return paypointer;
             i+=4088;
         }
-
+        i += * (int *) (paypointer-4) + 8;
+        if(i>4096){
+            void *vptr;
+            printf("Not enough space, void pointer returned.\n");
+            return vptr;
+        }
         paypointer += (* (int *) (paypointer - 4) + 8);
-        i += * (int *) (paypointer-4);
     }
     void *vptr;
     printf("Not enough space, void pointer returned.");
     return vptr;
-
+    
 }
 
-int checkfree(void *mall){
+int printCheck(void *mall){
     char *sizeptr = (char *) memory;
     sizeptr += 4;
     int i = 4;
-    /*printf("%p\n", sizeptr);
-    printf("%p\n", mall);
-    printf("%d\n", mall == (sizeptr));*/
+
     do{
         if((sizeptr + 4) == mall && * (int *) (sizeptr - 4) == 1) {
             return 1;
             i += 4088;
         }
         if((sizeptr + 4) == mall && * (int *) (sizeptr - 4) == 0){
-            //printf("Tried to free a freed pointer");
             return 2;
         }
         i += * (int *) (sizeptr) + 8;
         sizeptr += * (int *) (sizeptr) + 8;
     } while(i < 4084);
+    return 0;
+
+} // Checks whether the address that is to be freed has been malloc'd or not. 1=true 0=false
+
+int checkfree(void *mall){
+    char *sizeptr = (char *) memory;
+    sizeptr += 4;
+    int i = 4;
+    do{
+        if((sizeptr + 4) == mall && * (int *) (sizeptr - 4) == 1) { //success
+            return 0;
+            i += 4088;
+        }
+        if((sizeptr + 4) == mall && * (int *) (sizeptr - 4) == 0){ //calling free a second time on the same pointer: error 3
+            return 3;
+        }
+        i += * (int *) (sizeptr) + 8;
+        sizeptr += * (int *) (sizeptr) + 8;
+    } while(i < 4084);
+    if((void *) memory <= (void *) mall && (void *) mall <= (void *)  &memory[512]){ //calling free on address not at the start of a chunk: error 2
+        return 2;
+    }
+    else{ //calling free with an address not obtained from malloc(): error 1
+        return 1;
+    }
 
     //printf("The pointer has not been malloc'd");
-    return 0;
+    return 4;
 
 } // Checks whether the address that is to be freed has been malloc'd or not. 1=true 0=false
 
@@ -84,7 +110,7 @@ void printArray(){
     char *ptr = (char *) memory;
     do{
         //printf("Block %d\n", i);
-        if(checkfree(ptr+HEADERSIZE) == 1 || checkfree(ptr+HEADERSIZE) == 2){
+        if(printCheck(ptr+HEADERSIZE) == 1 || printCheck(ptr+HEADERSIZE) == 2){
             printf("Allocated: %d\n", * (int*) (ptr));
             printf("Size: %d\n\n", *(int*) (ptr+4));
             i += *(int*) (ptr+4);
@@ -117,13 +143,37 @@ void coalesce(){
 
 void myfree(void *ptr, char *file, int line){
     //coalesce();
-    if (checkfree(ptr) == 1){
+    if (checkfree(ptr) == 0){
         * (int *) (ptr - 8) = 0;
+        coalesce();
+        return;
     }
-    coalesce();
+    if (checkfree(ptr) == 1){
+        printf("Error in %s on line %d: Called free() with an address not obtained from malloc().\n", file, line);
+    }
+    if (checkfree(ptr) == 2){
+        printf("Error in %s on line %d: Called free() with an address not at the start of a chunk.\n", file, line);
+    }
+    if (checkfree(ptr) == 3){
+        printf("Error in %s on line %d: Called free() a second time on the same pointer.\n", file, line);
+    }
 }
 
 int main(){
+
+    //malloc(4090);
+    //printArray();
+
+    //int x;
+    //free(&x);
+
+    //int *p = malloc(sizeof(int)*2);
+    //free(p+1);
+
+    /*int *p = malloc(sizeof(int)*100);
+    int *q = p;
+    free(p);
+    free(q);*/
 
     void *a = malloc(8);
     void *b = malloc(32);
